@@ -1,0 +1,137 @@
+df=read.csv("C:\\Users\\Saurabh\\Desktop\\PHD\\R Programs for Joint Monitoring\\Shewhart\\Example\\Example 1 Data.csv")
+head(df)
+library(DescTools)
+Phase_1 = df[df$Sample.Number<=25,c("X1","X2","X3","X4","X5")]
+Phase_2 = df[df$Sample.Number>25,c("X1","X2","X3","X4","X5")]
+u = c(Phase_1$X1,Phase_1$X2,Phase_1$X3,Phase_1$X4,Phase_1$X5)
+
+
+WRSAB =function(u,v){
+  m=length(u); n=length(v);N=m+n
+  
+  m1=1/2*(n*(N+1));s1=1/12*(m*n*(N+1))
+  if(N%%2==0 ){m2=(n*N)/4;s2=1/48*(m*n*(N^2-4)/(N-1)) }else{m2=(n*(N^2-1))/(4*N);s2=1/48*(m*n*(N+1)*(N^2+3))/N^2}
+  S=((sum(rep(c(0,1),c(m,n))*rank(c(u,v)))-m1)/sqrt(s1))^2+((sum(abs((rank(c(u,v)))-1/2*(N+1))*rep(c(0,1),c(m,n)))-m2)/sqrt(s2))^2
+  return(S)
+}
+WRSM =function(u,v){
+  m=length(u); n=length(v);N=m+n
+  m1=m*n/2;s1=1/12*(m*n*(N+1))
+  m2=(n*(N^2-1))/(12);s2=1/180*(m*n*(N+1)*(N^2-4))
+  S=((sum(rep(c(0,1),c(m,n))*rank(c(u,v)))-m1)/sqrt(s1))^2+((sum(((rank(c(u,v)))-1/2*(N+1))^2*rep(c(0,1),c(m,n)))-m2)/sqrt(s2))^2
+}
+
+MWAB = function(u,v){
+  m=length(u); n=length(v);N=m+n
+  m1=m*n/2
+  s1=1/12*(m*n*(N+1))
+  # Calculate mean and variance for AB test
+  if(N%%2==0 ){ m2=(n*N)/4;s2=1/48*(m*n*(N^2-4)/(N-1))
+  } else { m2=(n*(N^2-1))/(4*N); s2=1/48*(m*n*(N+1)*(N^2+3))/N^2}
+  S=((sum(sapply(1:length(u),function(i) u[i]>v))-m1)/sqrt(s1))^2+
+    ((sum(abs((rank(c(u,v)))-1/2*(N+1))*rep(c(0,1),c(m,n)))-m2)/sqrt(s2))^2
+  return(S)
+}
+MWM = function(u,v){
+  m=length(u); n=length(v);N=m+n
+  m1=m*n/2;s1=1/12*(m*n*(N+1))
+  m2=(n*(N^2-1))/(12);s2=1/180*(m*n*(N+1)*(N^2-4))
+  S=((sum(sapply(1:length(u),function(i) u[i]>v))-m1)/sqrt(s1))^2+((sum(((rank(c(u,v)))-1/2*(N+1))^2*rep(c(0,1),c(m,n)))-m2)/sqrt(s2))^2
+  return(S)
+}
+SC =function(u,v){
+  m=length(u); n=length(v);N=m+n
+  m2 = (n * (N + 1) * (2 * N + 1)) / 6  # Constant used in calculation
+  s2 = (m * n) / 180 * ((N + 1) * (2 * N + 1) * (8 * N + 11))  # Constant used in calculation
+  pho = ((2 * (N^2 - 4)) / ((2 * N + 1) * (8 * N + 11))) - 1  # Constant used in calculation
+  U = ((sum(rep(c(0, 1), c(m, n)) * rank(c(u, v))^2) - m2) / sqrt(s2))  # Calculate U statistic
+  V = ((sum(rep(c(0, 1), c(m, n)) * (N + 1 - rank(c(u, v)))^2) - m2) / sqrt(s2))  # Calculate V statistic
+  C = (U^2 + V^2 - 2 * pho * U * V) / (2 * (1 - pho^2))  # Calculate S statistic
+  return(C)
+}
+VWAB = function(u,v){
+  m=length(u); n=length(v);N=m+n
+  Ind = rep(c(0, 1), c(m, n))  
+  if(N%%2==0 ){ m2=(n*N)/4;s2=1/48*(m*n*(N^2-4)/(N-1))
+  } else { m2=(n*(N^2-1))/(4*N); s2=1/48*(m*n*(N+1)*(N^2+3))/N^2}
+  XN = sum(Ind * (qnorm(rank(c(u, v)) / (N + 1))))
+  s_1 = (m * n) / (N * (N - 1)) * sum(qnorm(rank(c(u, v)) / (N + 1))^2)
+  # Computing the test statistic S
+  S = ((XN - 0) / sqrt(s_1))^2 + ((sum(abs((rank(c(u, v))) - 1/2 * (N + 1)) * Ind) - m2) / sqrt(s2))^2
+  return(S)
+}
+VWM = function(u,v){
+  m=length(u); n=length(v);N=m+n
+  Ind = rep(c(0, 1), c(m, n))  
+  m2 <- (n * (N^2 - 1)) / (12)
+  s2 <- 1 / 180 * (m * n * (N + 1) * (N^2 - 4))
+  XN <- sum(Ind * (qnorm(rank(c(u, v)) / (N + 1))))
+  s_1 <- (m * n) / (N * (N - 1)) * sum(qnorm(rank(c(u, v)) / (N + 1))^2)
+  S <- ((XN - 0) / sqrt(s_1))^2 + ((sum(((rank(c(u, v))) - 1/2 * (N + 1))^2 * Ind) - m2) / sqrt(s2))^2
+  return(S)
+}
+plot_df =data.frame("t"=0,"SC"=0,"WRSAB"=0,"WRSM"=0,"MWAB"=0,"MWM"=0,"VWAB"=0,"VWM"=0,"PvalMW"=0,"PvalVW"=0,"PvalAB"=0,"PvalM"=0,"PvalMN"=0,"SC"=0,"WRSAB"=0)
+
+for( t in 1:nrow(Phase_2)){
+  v=c(as.vector(unlist(Phase_2[t,])))#,as.vector(unlist(Phase_2[t-1,])))
+  print(length(v))
+  plot_df[t,]=c(t,SC(u,v),WRSAB(u,v),WRSM(u,v),MWAB(u,v),MWM(u,v),VWAB(u,v),VWM(u,v),wilcox.test(u,v)$p.val,VanWaerdenTest(list(v,u))$p.val,ansari.test(u,v)$p.val,mood.test(u,v)$p.val,mood.test(u-median(u),v-median(v))$p.val,SC(u,v),WRSAB(u,v))
+}
+
+
+k=0
+for( t in 1:nrow(Phase_2)){
+  if(t==1){
+    plot_df[t,"C_C"] = max(0,0+(plot_df[t,"SC"]-1)-k)
+    plot_df[t,"C_WRSAB"] = max(0,0+(plot_df[t,"WRSAB"]-2)-k)
+    plot_df[t,"C_WRSM"] = max(0,0+(plot_df[t,"WRSM"]-2)-k)
+    plot_df[t,"C_MWAB"] = max(0,0+(plot_df[t,"MWAB"]-2)-k)
+    plot_df[t,"C_MWM"] = max(0,0+(plot_df[t,"MWM"]-2)-k)
+    plot_df[t,"C_VWAB"] = max(0,0+(plot_df[t,"VWAB"]-2)-k)
+    plot_df[t,"C_VWM"] = max(0,0+(plot_df[t,"VWM"]-2)-k)
+  }else{
+    plot_df[t,"C_C"] = max(0,plot_df[t-1,"C_C"]+(plot_df[t,"SC"]-1)-k)
+    plot_df[t,"C_WRSAB"] = max(0,plot_df[t-1,"C_WRSAB"]+(plot_df[t,"WRSAB"]-2)-k)
+    plot_df[t,"C_WRSM"] = max(0,plot_df[t-1,"C_WRSM"]+(plot_df[t,"WRSM"]-2)-k)
+    plot_df[t,"C_MWAB"] = max(0,plot_df[t-1,"C_MWAB"]+(plot_df[t,"MWAB"]-2)-k)
+    plot_df[t,"C_MWM"] = max(0,plot_df[t-1,"C_MWM"]+(plot_df[t,"MWM"]-2)-k)
+    plot_df[t,"C_VWAB"] = max(0,plot_df[t-1,"C_VWAB"]+(plot_df[t,"VWAB"]-2)-k)
+    plot_df[t,"C_VWM"] = max(0,plot_df[t-1,"C_VWM"]+(plot_df[t,"VWM"]-2)-k)
+  }
+}
+
+library(ggplot2)
+
+shifts <- 1:nrow(plot_df)
+chart_name <- "C_C"
+dataset_name <- 'FLOW WIDTH MEASUREMENTS DATA'
+a <- 0  # Lower Limit
+b <- c(plot_df[[chart_name]])
+c <- 11.9 # Upper Limit
+ARL <- b
+chart <- c(rep("Lepage Statistic L21 ", length(shifts)))
+new_df <- data.frame(chart, shifts, ARL)
+colnames(new_df) <- c("Charts", "Shifts", "ARL")
+
+ARL_graph <- ggplot(new_df, aes(x = Shifts, y = ARL)) +
+  geom_line(color = "black", size = 1.1) +  # Line connecting points
+  geom_point(color = "black", size = 2.2) +   # Empty circle points
+  theme_bw() +
+  geom_hline(yintercept = c) +
+  geom_hline(yintercept = 0) +
+  theme(legend.position = c(0.2, 0.9), legend.title = element_blank(),
+        axis.title.y = element_text(size = 20),
+        axis.title.x = element_text(size = 20),
+        axis.text.x = element_text(size = 15),  # Increased size of x-axis numbers
+        axis.text.y = element_text(size = 15),  # Size of y-axis numbers
+        text = element_text(size = 20), 
+        axis.text = element_text(size = 10),  # Size of axis numbers
+        axis.ticks.length = unit(0.45, "cm")) +  # Adjust length of ticks
+  xlab("Sample Number") +  # Bold x-axis title
+  ylab(bquote('CUSUM Cucconi')) +  # Bold y-axis title CL["W,A"]
+  scale_x_continuous(breaks = seq(0, nrow(plot_df), by = 2)) + # Set x-axis intervals of 2
+  scale_y_continuous(breaks = seq(0, max(b), by = 5)) + # Set y-axis intervals of 2
+  geom_text(aes(x = nrow(plot_df) + 1, label = "UCL", y = c-1), size = 6)  # Increased size of "UCL" label
+ARL_graph
+
+#write.csv(plot_df,"C:\\Users\\Saurabh\\Desktop\\Example 1 Statistics New 2 .csv")
